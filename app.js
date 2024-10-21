@@ -1,28 +1,39 @@
+// app.js
 function App() {
     const [user, setUser] = React.useState(null);
     const [products, setProducts] = React.useState([]);
 
-    const login = (username, password) => {
-        // Simuler une connexion
+    const handleLogin = (event) => {
+        event.preventDefault();
+        const username = event.target.username.value;
+        const password = event.target.password.value;
+        // Vérification simplifiée des identifiants
         if (username === "admin" && password === "password") {
-            setUser({ username: "admin", role: "admin" });
+            setUser({ username: username });
         } else {
             alert("Identifiants incorrects");
         }
     };
 
-    const logout = () => {
+    const handleLogout = () => {
         setUser(null);
+    };
+
+    const handleAddProduct = (event) => {
+        event.preventDefault();
+        const newProduct = {
+            name: event.target.name.value,
+            expiryDate: event.target.expiryDate.value
+        };
+        setProducts([...products, newProduct]);
+        event.target.reset();
     };
 
     if (!user) {
         return (
             <div>
                 <h1>Connexion</h1>
-                <form onSubmit={(e) => {
-                    e.preventDefault();
-                    login(e.target.username.value, e.target.password.value);
-                }}>
+                <form onSubmit={handleLogin}>
                     <input name="username" type="text" placeholder="Nom d'utilisateur" required />
                     <input name="password" type="password" placeholder="Mot de passe" required />
                     <button type="submit">Se connecter</button>
@@ -34,8 +45,21 @@ function App() {
     return (
         <div>
             <h1>Bienvenue, {user.username}</h1>
-            <button onClick={logout}>Déconnexion</button>
-            {/* Ajoutez ici le reste de votre interface utilisateur */}
+            <button onClick={handleLogout}>Déconnexion</button>
+            
+            <h2>Ajouter un produit</h2>
+            <form onSubmit={handleAddProduct}>
+                <input name="name" type="text" placeholder="Nom du produit" required />
+                <input name="expiryDate" type="date" required />
+                <button type="submit">Ajouter</button>
+            </form>
+
+            <h2>Liste des produits</h2>
+            <ul>
+                {products.map((product, index) => (
+                    <li key={index}>{product.name} - Date d'expiration : {product.expiryDate}</li>
+                ))}
+            </ul>
         </div>
     );
 }
