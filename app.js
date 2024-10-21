@@ -1,14 +1,29 @@
 function App() {
     const [user, setUser] = React.useState(null);
-    const [products, setProducts] = React.useState([]);
+    const [articles, setArticles] = React.useState([]);
+    const [storeProducts, setStoreProducts] = React.useState([]);
     const [searchTerm, setSearchTerm] = React.useState('');
+
+    React.useEffect(() => {
+        // Charger la base d'articles
+        const savedArticles = JSON.parse(localStorage.getItem('articles')) || [];
+        setArticles(savedArticles);
+
+        // Charger les produits du magasin si un utilisateur est connecté
+        if (user && user.role === 'store') {
+            const savedStoreProducts = JSON.parse(localStorage.getItem(`storeProducts_${user.username}`)) || [];
+            setStoreProducts(savedStoreProducts);
+        }
+    }, [user]);
 
     const handleLogin = (event) => {
         event.preventDefault();
         const username = event.target.username.value;
         const password = event.target.password.value;
         if (username === "admin" && password === "password") {
-            setUser({ username: username });
+            setUser({ username: username, role: 'admin' });
+        } else if (username === "magasin1" && password === "password") {
+            setUser({ username: username, role: 'store' });
         } else {
             alert("Identifiants incorrects");
         }
@@ -16,16 +31,39 @@ function App() {
 
     const handleLogout = () => {
         setUser(null);
+        setStoreProducts([]);
     };
 
-    const handleAddProduct = (event) => {
+    const handleAddArticle = (event) => {
         event.preventDefault();
-        const newProduct = {
-            name: event.target.name.value,
-            expiryDate: event.target.expiryDate.value,
-            quantity: parseInt(event.target.quantity.value)
+        const newArticle = {
+            code: event.target.code.value,
+            designation: event.target.designation.value,
+            category: event.target.category.value,
+            prixHT: parseFloat(event.target.prixHT.value)
         };
-        setProducts([...products, newProduct]);
+        const updatedArticles = [...articles, newArticle];
+        setArticles(updatedArticles);
+        localStorage.setItem('articles', JSON.stringify(updatedArticles));
+        event.target.reset();
+    };
+
+    const handleAddStoreProduct = (event) => {
+        event.preventDefault();
+        const code = event.target.code.value;
+        const article = articles.find(a => a.code === code);
+        if (!article) {
+            alert("Article non trouvé");
+            return;
+        }
+        const newStoreProduct = {
+            ...article,
+            quantity: parseInt(event.target.quantity.value),
+            expiryDate: event.target.expiryDate.value
+        };
+        const updatedStoreProducts = [...storeProducts, newStoreProduct];
+        setStoreProducts(updatedStoreProducts);
+        localStorage.setItem(`storeProducts_${user.username}`, JSON.stringify(updatedStoreProducts));
         event.target.reset();
     };
 
@@ -33,11 +71,12 @@ function App() {
         setSearchTerm(event.target.value);
     };
 
-    const filteredProducts = products.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredStoreProducts = storeProducts.filter(product =>
+        product.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.code.includes(searchTerm)
     );
 
-    const sortedProducts = filteredProducts.sort((a, b) => 
+    const sortedStoreProducts = filteredStoreProducts.sort((a, b) => 
         new Date(a.expiryDate) - new Date(b.expiryDate)
     );
 
@@ -67,30 +106,56 @@ function App() {
             <h1>Bienvenue, {user.username}</h1>
             <button onClick={handleLogout}>Déconnexion</button>
             
-            <h2>Ajouter un produit</h2>
-            <form onSubmit={handleAddProduct}>
-                <input name="name" type="text" placeholder="Nom du produit" required />
-                <input name="expiryDate" type="date" required />
-                <input name="quantity" type="number" placeholder="Quantité" required />
-                <button type="submit">Ajouter</button>
-            </form>
+            {user.role === 'admin' && (
+                <div>
+                    <h2>Ajouter un article à la base</h2>
+                    <form onSubmit={handleAddArticle}>
+                        <input name="code" type="text" placeholder="Code article" required />
+                        <input name="designation" type="text" placeholder="Désignation" required />
+                        <input name="category" type="text" placeholder="Catégorie" required />
+                        <input name="prixHT" type="number" step="0.01" placeholder="Prix HT" required />
+                        <button type="submit">Ajouter</button>
+                    </form>
+                    <h2>Liste des articles</h2>
+                    <ul>
+                        {articles.map((article, index) => (
+                            <li key={index}>
+                                {article.code} - {article.designation} - {article.category} - {article.prixHT}€ HT
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
-            <h2>Liste des produits</h2>
-            <input 
-                type="text" 
-                placeholder="Rechercher un produit" 
-                value={searchTerm} 
-                onChange={handleSearch}
-            />
-            <ul>
-                {sortedProducts.map((product, index) => (
-                    <li key={index} style={{color: isNearExpiry(product.expiryDate) ? 'red' : 'black'}}>
-                        {product.name} - Quantité: {product.quantity} - 
-                        Date d'expiration : {product.expiryDate}
-                        {isNearExpiry(product.expiryDate) && " - ATTENTION: Proche de la péremption!"}
-                    </li>
-                ))}
-            </ul>
+            {user.role === 'store' && (
+                <div>
+                    <h2>Ajouter un produit au stock</h2>
+                    <form onSubmit={handleAddStoreProduct}>
+                        <input name="code" type="text" placeholder="Code article" required />
+                        <input name="quantity" type="number" placeholder="Quantité" required />
+                        <input name="expiryDate" type="date" required />
+                        <button type="submit">Ajouter</button>
+                    </form>
+                    <h2>Rechercher un produit</h2>
+                    <input 
+                        type="text" 
+                        placeholder="Rechercher par code ou désignation" 
+                        value={searchTerm} 
+                        onChange={handleSearch}
+                    />
+                    <h2>Liste des produits du magasin</h2>
+                    <ul>
+                        {sortedStoreProducts.map((product, index) => (
+                            <li key={index} style={{color: isNearExpiry(product.expiryDate) ? 'red' : 'black'}}>
+                                {product.code} - {product.designation} - Catégorie: {product.category} - 
+                                Prix: {product.prixHT}€ HT - Quantité: {product.quantity} - 
+                                Date d'expiration : {product.expiryDate}
+                                {isNearExpiry(product.expiryDate) && " - ATTENTION: Proche de la péremption!"}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </div>
     );
 }
