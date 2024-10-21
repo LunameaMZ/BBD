@@ -5,11 +5,9 @@ function App() {
     const [searchTerm, setSearchTerm] = React.useState('');
 
     React.useEffect(() => {
-        // Charger la base d'articles
         const savedArticles = JSON.parse(localStorage.getItem('articles')) || [];
         setArticles(savedArticles);
 
-        // Charger les produits du magasin si un utilisateur est connecté
         if (user && user.role === 'store') {
             const savedStoreProducts = JSON.parse(localStorage.getItem(`storeProducts_${user.username}`)) || [];
             setStoreProducts(savedStoreProducts);
@@ -40,7 +38,8 @@ function App() {
             code: event.target.code.value,
             designation: event.target.designation.value,
             category: event.target.category.value,
-            prixHT: parseFloat(event.target.prixHT.value)
+            prixHT: parseFloat(event.target.prixHT.value),
+            prixAchat: parseFloat(event.target.prixAchat.value)
         };
         const updatedArticles = [...articles, newArticle];
         setArticles(updatedArticles);
@@ -88,6 +87,39 @@ function App() {
         return diffDays <= 30;
     };
 
+    const getDiscountPercentage = (expiryDate) => {
+        const today = new Date();
+        const expiry = new Date(expiryDate);
+        const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+
+        if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
+            return 30;
+        } else if (daysUntilExpiry <= 0 && daysUntilExpiry >= -30) {
+            return 50;
+        } else if (daysUntilExpiry < -30) {
+            return 100; // Product should be removed
+        }
+        return 0;
+    };
+
+    const calculateProfit = (product) => {
+        const discountPercentage = getDiscountPercentage(product.expiryDate);
+        const sellingPrice = product.prixHT * (1 - discountPercentage / 100);
+        return (sellingPrice - product.prixAchat) * product.quantity;
+    };
+
+    const getTotalProfit = () => {
+        return storeProducts.reduce((total, product) => total + calculateProfit(product), 0);
+    };
+
+    const getTotalStock = () => {
+        return storeProducts.reduce((total, product) => total + product.quantity, 0);
+    };
+
+    const getExpiredProducts = () => {
+        return storeProducts.filter(product => new Date(product.expiryDate) < new Date()).length;
+    };
+
     if (!user) {
         return (
             <div>
@@ -114,13 +146,15 @@ function App() {
                         <input name="designation" type="text" placeholder="Désignation" required />
                         <input name="category" type="text" placeholder="Catégorie" required />
                         <input name="prixHT" type="number" step="0.01" placeholder="Prix HT" required />
+                        <input name="prixAchat" type="number" step="0.01" placeholder="Prix d'achat" required />
                         <button type="submit">Ajouter</button>
                     </form>
                     <h2>Liste des articles</h2>
                     <ul>
                         {articles.map((article, index) => (
                             <li key={index}>
-                                {article.code} - {article.designation} - {article.category} - {article.prixHT}€ HT
+                                {article.code} - {article.designation} - {article.category} - 
+                                Prix HT: {article.prixHT}€ - Prix d'achat: {article.prixAchat}€
                             </li>
                         ))}
                     </ul>
@@ -143,16 +177,26 @@ function App() {
                         value={searchTerm} 
                         onChange={handleSearch}
                     />
+                    <h2>Statistiques du magasin</h2>
+                    <p>Profit total estimé: {getTotalProfit().toFixed(2)}€</p>
+                    <p>Total des produits en stock: {getTotalStock()}</p>
+                    <p>Nombre de produits périmés: {getExpiredProducts()}</p>
                     <h2>Liste des produits du magasin</h2>
                     <ul>
-                        {sortedStoreProducts.map((product, index) => (
-                            <li key={index} style={{color: isNearExpiry(product.expiryDate) ? 'red' : 'black'}}>
-                                {product.code} - {product.designation} - Catégorie: {product.category} - 
-                                Prix: {product.prixHT}€ HT - Quantité: {product.quantity} - 
-                                Date d'expiration : {product.expiryDate}
-                                {isNearExpiry(product.expiryDate) && " - ATTENTION: Proche de la péremption!"}
-                            </li>
-                        ))}
+                        {sortedStoreProducts.map((product, index) => {
+                            const discountPercentage = getDiscountPercentage(product.expiryDate);
+                            const profit = calculateProfit(product);
+                            return (
+                                <li key={index} style={{color: isNearExpiry(product.expiryDate) ? 'red' : 'black'}}>
+                                    {product.code} - {product.designation} - Catégorie: {product.category} - 
+                                    Prix HT: {product.prixHT}€ - Quantité: {product.quantity} - 
+                                    Date d'expiration: {product.expiryDate} - 
+                                    Réduction: {discountPercentage}% - 
+                                    Profit estimé: {profit.toFixed(2)}€
+                                    {isNearExpiry(product.expiryDate) && " - ATTENTION: Proche de la péremption!"}
+                                </li>
+                            );
+                        })}
                     </ul>
                 </div>
             )}
