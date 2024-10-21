@@ -3,6 +3,7 @@ function App() {
     const [articles, setArticles] = React.useState([]);
     const [storeProducts, setStoreProducts] = React.useState([]);
     const [searchTerm, setSearchTerm] = React.useState('');
+    const [currentPage, setCurrentPage] = React.useState('accueil');
 
     React.useEffect(() => {
         const savedArticles = JSON.parse(localStorage.getItem('articles')) || [];
@@ -30,6 +31,7 @@ function App() {
     const handleLogout = () => {
         setUser(null);
         setStoreProducts([]);
+        setCurrentPage('accueil');
     };
 
     const handleAddArticle = (event) => {
@@ -120,6 +122,26 @@ function App() {
         return storeProducts.filter(product => new Date(product.expiryDate) < new Date()).length;
     };
 
+    const Menu = () => (
+        <nav>
+            <button onClick={() => setCurrentPage('accueil')}>Accueil</button>
+            {user.role === 'admin' && (
+                <>
+                    <button onClick={() => setCurrentPage('gestionArticles')}>Gestion des Articles</button>
+                    <button onClick={() => setCurrentPage('rapports')}>Rapports</button>
+                </>
+            )}
+            {user.role === 'store' && (
+                <>
+                    <button onClick={() => setCurrentPage('saisie')}>Saisie de Produits</button>
+                    <button onClick={() => setCurrentPage('gestionStock')}>Gestion du Stock</button>
+                    <button onClick={() => setCurrentPage('statistiques')}>Statistiques</button>
+                </>
+            )}
+            <button onClick={handleLogout}>Déconnexion</button>
+        </nav>
+    );
+
     if (!user) {
         return (
             <div>
@@ -136,11 +158,19 @@ function App() {
     return (
         <div>
             <h1>Bienvenue, {user.username}</h1>
-            <button onClick={handleLogout}>Déconnexion</button>
+            <Menu />
             
-            {user.role === 'admin' && (
+            {currentPage === 'accueil' && (
                 <div>
-                    <h2>Ajouter un article à la base</h2>
+                    <h2>Tableau de Bord</h2>
+                    <p>Bienvenue dans l'application de gestion des péremptions.</p>
+                    <p>Utilisez le menu ci-dessus pour naviguer dans l'application.</p>
+                </div>
+            )}
+            
+            {currentPage === 'gestionArticles' && user.role === 'admin' && (
+                <div>
+                    <h2>Gestion des Articles</h2>
                     <form onSubmit={handleAddArticle}>
                         <input name="code" type="text" placeholder="Code article" required />
                         <input name="designation" type="text" placeholder="Désignation" required />
@@ -149,7 +179,7 @@ function App() {
                         <input name="prixAchat" type="number" step="0.01" placeholder="Prix d'achat" required />
                         <button type="submit">Ajouter</button>
                     </form>
-                    <h2>Liste des articles</h2>
+                    <h3>Liste des articles</h3>
                     <ul>
                         {articles.map((article, index) => (
                             <li key={index}>
@@ -160,28 +190,35 @@ function App() {
                     </ul>
                 </div>
             )}
-
-            {user.role === 'store' && (
+            
+            {currentPage === 'rapports' && user.role === 'admin' && (
                 <div>
-                    <h2>Ajouter un produit au stock</h2>
+                    <h2>Rapports</h2>
+                    <p>Fonctionnalité de rapports à implémenter.</p>
+                </div>
+            )}
+            
+            {currentPage === 'saisie' && user.role === 'store' && (
+                <div>
+                    <h2>Saisie de Produits</h2>
                     <form onSubmit={handleAddStoreProduct}>
                         <input name="code" type="text" placeholder="Code article" required />
                         <input name="quantity" type="number" placeholder="Quantité" required />
                         <input name="expiryDate" type="date" required />
                         <button type="submit">Ajouter</button>
                     </form>
-                    <h2>Rechercher un produit</h2>
+                </div>
+            )}
+            
+            {currentPage === 'gestionStock' && user.role === 'store' && (
+                <div>
+                    <h2>Gestion du Stock</h2>
                     <input 
                         type="text" 
                         placeholder="Rechercher par code ou désignation" 
                         value={searchTerm} 
                         onChange={handleSearch}
                     />
-                    <h2>Statistiques du magasin</h2>
-                    <p>Profit total estimé: {getTotalProfit().toFixed(2)}€</p>
-                    <p>Total des produits en stock: {getTotalStock()}</p>
-                    <p>Nombre de produits périmés: {getExpiredProducts()}</p>
-                    <h2>Liste des produits du magasin</h2>
                     <ul>
                         {sortedStoreProducts.map((product, index) => {
                             const discountPercentage = getDiscountPercentage(product.expiryDate);
@@ -198,6 +235,15 @@ function App() {
                             );
                         })}
                     </ul>
+                </div>
+            )}
+            
+            {currentPage === 'statistiques' && user.role === 'store' && (
+                <div>
+                    <h2>Statistiques du magasin</h2>
+                    <p>Profit total estimé: {getTotalProfit().toFixed(2)}€</p>
+                    <p>Total des produits en stock: {getTotalStock()}</p>
+                    <p>Nombre de produits périmés: {getExpiredProducts()}</p>
                 </div>
             )}
         </div>
