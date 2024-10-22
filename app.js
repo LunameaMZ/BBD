@@ -34,6 +34,26 @@ function App() {
         setCurrentPage('accueil');
     };
 
+    const Menu = () => (
+        <nav>
+            <button onClick={() => setCurrentPage('accueil')}>Accueil</button>
+            {user.role === 'admin' && (
+                React.createElement(React.Fragment, null,
+                    React.createElement('button', { onClick: () => setCurrentPage('gestionArticles') }, "Gestion des Articles"),
+                    React.createElement('button', { onClick: () => setCurrentPage('rapports') }, "Rapports")
+                )
+            )}
+            {user.role === 'store' && (
+                React.createElement(React.Fragment, null,
+                    React.createElement('button', { onClick: () => setCurrentPage('saisie') }, "Saisie de Produits"),
+                    React.createElement('button', { onClick: () => setCurrentPage('gestionStock') }, "Gestion du Stock"),
+                    React.createElement('button', { onClick: () => setCurrentPage('statistiques') }, "Statistiques")
+                )
+            )}
+            <button onClick={handleLogout}>Déconnexion</button>
+        </nav>
+    );
+
     const handleAddArticle = (event) => {
         event.preventDefault();
         const newArticle = {
@@ -94,13 +114,9 @@ function App() {
         const expiry = new Date(expiryDate);
         const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
 
-        if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
-            return 30;
-        } else if (daysUntilExpiry <= 0 && daysUntilExpiry >= -30) {
-            return 50;
-        } else if (daysUntilExpiry < -30) {
-            return 100; // Product should be removed
-        }
+        if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) return 30;
+        if (daysUntilExpiry <= 0 && daysUntilExpiry >= -30) return 50;
+        if (daysUntilExpiry < -30) return 100;
         return 0;
     };
 
@@ -122,29 +138,9 @@ function App() {
         return storeProducts.filter(product => new Date(product.expiryDate) < new Date()).length;
     };
 
-    const Menu = () => (
-        <nav>
-            <button onClick={() => setCurrentPage('accueil')}>Accueil</button>
-            {user.role === 'admin' && (
-                <>
-                    <button onClick={() => setCurrentPage('gestionArticles')}>Gestion des Articles</button>
-                    <button onClick={() => setCurrentPage('rapports')}>Rapports</button>
-                </>
-            )}
-            {user.role === 'store' && (
-                <>
-                    <button onClick={() => setCurrentPage('saisie')}>Saisie de Produits</button>
-                    <button onClick={() => setCurrentPage('gestionStock')}>Gestion du Stock</button>
-                    <button onClick={() => setCurrentPage('statistiques')}>Statistiques</button>
-                </>
-            )}
-            <button onClick={handleLogout}>Déconnexion</button>
-        </nav>
-    );
-
     if (!user) {
         return (
-            <div>
+            <div className="login-form">
                 <h1>Connexion</h1>
                 <form onSubmit={handleLogin}>
                     <input name="username" type="text" placeholder="Nom d'utilisateur" required />
@@ -156,15 +152,14 @@ function App() {
     }
 
     return (
-        <div>
+        <div className="container">
             <h1>Bienvenue, {user.username}</h1>
             <Menu />
             
             {currentPage === 'accueil' && (
-                <div>
+                <div className="stats-card">
                     <h2>Tableau de Bord</h2>
                     <p>Bienvenue dans l'application de gestion des péremptions.</p>
-                    <p>Utilisez le menu ci-dessus pour naviguer dans l'application.</p>
                 </div>
             )}
             
@@ -179,22 +174,17 @@ function App() {
                         <input name="prixAchat" type="number" step="0.01" placeholder="Prix d'achat" required />
                         <button type="submit">Ajouter</button>
                     </form>
-                    <h3>Liste des articles</h3>
-                    <ul>
-                        {articles.map((article, index) => (
-                            <li key={index}>
-                                {article.code} - {article.designation} - {article.category} - 
-                                Prix HT: {article.prixHT}€ - Prix d'achat: {article.prixAchat}€
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-            
-            {currentPage === 'rapports' && user.role === 'admin' && (
-                <div>
-                    <h2>Rapports</h2>
-                    <p>Fonctionnalité de rapports à implémenter.</p>
+                    <div className="stats-card">
+                        <h3>Liste des articles</h3>
+                        <ul>
+                            {articles.map((article, index) => (
+                                <li key={index}>
+                                    {article.code} - {article.designation} - {article.category} - 
+                                    Prix HT: {article.prixHT}€ - Prix d'achat: {article.prixAchat}€
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 </div>
             )}
             
@@ -215,6 +205,7 @@ function App() {
                     <h2>Gestion du Stock</h2>
                     <input 
                         type="text" 
+                        className="search-box"
                         placeholder="Rechercher par code ou désignation" 
                         value={searchTerm} 
                         onChange={handleSearch}
@@ -224,7 +215,7 @@ function App() {
                             const discountPercentage = getDiscountPercentage(product.expiryDate);
                             const profit = calculateProfit(product);
                             return (
-                                <li key={index} style={{color: isNearExpiry(product.expiryDate) ? 'red' : 'black'}}>
+                                <li key={index} className={isNearExpiry(product.expiryDate) ? 'near-expiry' : ''}>
                                     {product.code} - {product.designation} - Catégorie: {product.category} - 
                                     Prix HT: {product.prixHT}€ - Quantité: {product.quantity} - 
                                     Date d'expiration: {product.expiryDate} - 
@@ -241,13 +232,15 @@ function App() {
             {currentPage === 'statistiques' && user.role === 'store' && (
                 <div>
                     <h2>Statistiques du magasin</h2>
-                    <p>Profit total estimé: {getTotalProfit().toFixed(2)}€</p>
-                    <p>Total des produits en stock: {getTotalStock()}</p>
-                    <p>Nombre de produits périmés: {getExpiredProducts()}</p>
+                    <div className="stats-card">
+                        <p>Profit total estimé: {getTotalProfit().toFixed(2)}€</p>
+                        <p>Total des produits en stock: {getTotalStock()}</p>
+                        <p>Nombre de produits périmés: {getExpiredProducts()}</p>
+                    </div>
                 </div>
             )}
         </div>
     );
 }
 
-ReactDOM.render(<App />, document.getElementById('root'));
+ReactDOM.render(React.createElement(App), document.getElementById('root'));
